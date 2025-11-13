@@ -17,11 +17,11 @@ use core::time::Duration;
 use embedded_io_async::ReadExactError;
 use futures::future::{self, LocalBoxFuture};
 use futures::task::LocalSpawnExt;
+use rustls::ServerConfig;
 use rustls::pki_types::{PrivateKeyDer, UnixTime};
 use rustls::version::TLS12;
-use rustls::ServerConfig;
 
-use sel4_async_block_io::{access::ReadOnly, constant_block_sizes, BlockIO};
+use sel4_async_block_io::{BlockIO, access::ReadOnly, constant_block_sizes};
 use sel4_async_block_io_fat as fat;
 use sel4_async_io::EmbeddedIOAsyncAdapter;
 use sel4_async_network::{ManagedInterface, TcpSocket, TcpSocketError};
@@ -153,13 +153,13 @@ fn mk_tls_config(
     now_unix_time: Duration,
     now_fn: impl 'static + Send + Sync + Fn() -> Instant,
 ) -> ServerConfig {
-    let cert_der = match rustls_pemfile::read_one_from_slice(cert_pem.as_bytes())
-        .unwrap()
-        .unwrap()
-        .0
-    {
-        rustls_pemfile::Item::X509Certificate(cert) => cert,
-        _ => panic!(),
+    let rustls_pemfile::Item::X509Certificate(cert_der) =
+        rustls_pemfile::read_one_from_slice(cert_pem.as_bytes())
+            .unwrap()
+            .unwrap()
+            .0
+    else {
+        panic!()
     };
 
     let key_der = match rustls_pemfile::read_one_from_slice(priv_pem.as_bytes())

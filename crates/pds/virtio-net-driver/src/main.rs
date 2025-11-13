@@ -12,15 +12,15 @@ use core::ptr::NonNull;
 use virtio_drivers::{
     device::net::*,
     transport::{
-        mmio::{MmioTransport, VirtIOHeader},
         DeviceType, Transport,
+        mmio::{MmioTransport, VirtIOHeader},
     },
 };
 
 use sel4_microkit::{memory_region_symbol, protection_domain, var};
 use sel4_microkit_driver_adapters::net::driver::HandlerImpl;
 use sel4_shared_memory::SharedMemoryRef;
-use sel4_shared_ring_buffer::{roles::Use, RingBuffers};
+use sel4_shared_ring_buffer::{RingBuffers, roles::Use};
 use sel4_virtio_hal_impl::HalImpl;
 use sel4_virtio_net::DeviceWrapper;
 
@@ -34,7 +34,7 @@ const NET_BUFFER_LEN: usize = 2048;
 #[protection_domain(
     heap_size = 512 * 1024,
 )]
-fn init() -> HandlerImpl<DeviceWrapper<HalImpl, MmioTransport>> {
+fn init() -> HandlerImpl<DeviceWrapper<HalImpl, MmioTransport<'static>>> {
     HalImpl::init(
         config::VIRTIO_NET_DRIVER_DMA_SIZE,
         *var!(virtio_net_driver_dma_vaddr: usize = 0),
@@ -47,7 +47,8 @@ fn init() -> HandlerImpl<DeviceWrapper<HalImpl, MmioTransport>> {
                 as *mut VirtIOHeader,
         )
         .unwrap();
-        let transport = unsafe { MmioTransport::new(header) }.unwrap();
+        let transport =
+            unsafe { MmioTransport::new(header, config::VIRTIO_NET_MMIO_SIZE) }.unwrap();
         assert_eq!(transport.device_type(), DeviceType::Network);
         VirtIONet::<HalImpl, MmioTransport, NET_QUEUE_SIZE>::new(transport, NET_BUFFER_LEN).unwrap()
     };
